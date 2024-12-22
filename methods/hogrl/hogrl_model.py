@@ -37,22 +37,22 @@ class Layer_AGG(nn.Module):
             temp = F.dropout(temp,p=self.drop_rate,training=self.training)
             layer_outputs.append(temp)
         # print(layer_outputs[0].shape)
-
+        
         weighted_sums = [self.gating_networks[i](layer_outputs[i]) for i in range(self.layers_tree)]
-        
+
         # print(weighted_sums[0].shape)
-        
+
         alpha = F.softmax(torch.stack(weighted_sums, dim=-1), dim=-1)
 
         # print(alpha.shape)
         x_tree = torch.zeros_like(layer_outputs[0])  
         for i in range(self.layers_tree):
         
-            weight = alpha[:, :, i]  
+            weight = alpha[:, :, i] 
             x_tree += layer_outputs[i] * weight
 
         return x+self.weight*x_tree
-    
+
 class multi_HOGRL_Model(nn.Module):
     def __init__(self,in_feat,out_feat,relation_nums = 3, hidden = 32,drop_rate=0.6,weight = 1,num_layers = 2,layers_tree=2):
         super(multi_HOGRL_Model, self).__init__()
@@ -64,8 +64,8 @@ class multi_HOGRL_Model(nn.Module):
             setattr(self,'Layers'+str(i),Layer_AGG(in_feat,hidden,self.drop_rate,self.weight,num_layers,self.layers_tree))
         self.linear=nn.Linear(hidden*relation_nums,out_feat)
 
-    
-    def forward(self, x, edge_index):
+
+    def forward(self, x, edge_index): # edge_index[0]:(u->v)*E, edge_index[1]:
 
         layer_outputs = []
 
@@ -79,6 +79,10 @@ class multi_HOGRL_Model(nn.Module):
         x = F.log_softmax(x, dim=1)
         return x,x_temp
 
+    # [batch,input] -> multi_layer_agg -> 
+    # (Layer_AGG内部特征形状一直为[batch,hidden],集成时alpha为[L]) ->
+    # [batch,hidden*relation_nums] -> linear -> 
+    # [batch,2] 
 
 class Graphsage(nn.Module):
     def __init__(self, in_feat,out_feat):
